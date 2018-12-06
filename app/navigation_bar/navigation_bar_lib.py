@@ -1,20 +1,6 @@
-import dash_html_components as html
 from dateutil.parser import parse
 from Crawler.buffer import Buffer
 import pandas as pd
-
-
-def create_table(dataframe):
-
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in dataframe.columns])] +
-
-        # Body
-        [html.Tr([
-            html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-        ]) for i in range(len(dataframe))]
-    )
 
 
 def read_focus_data(user_focus_list, user_directory):
@@ -53,7 +39,6 @@ def filter_to_date_range(df, start_date, end_date):
 
     if end_date_parsed < start_date_parsed:
         end_date_parsed = start_date_parsed
-
 
     dff = dff.query('(tweet_time_parsed >= @start_date_parsed) & (tweet_time_parsed <= @end_date_parsed)')
 

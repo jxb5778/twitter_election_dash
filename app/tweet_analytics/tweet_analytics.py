@@ -1,7 +1,7 @@
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output
 import dash_html_components as html
 import dash_core_components as dcc
-import plotly.graph_objs as go
+import json
 from app.tweet_analytics.twitter_analytics_lib import *
 
 
@@ -15,8 +15,16 @@ class TweetAnalyticsModule(object):
         self.layout = html.Div(
             id=self.id,
             children=[
-                html.Div([dcc.Graph(id='word-frequency')], style={'display': 'inline-block'}),
-                html.Div([dcc.Graph(id='tweet-frequency')], style={'display': 'inline-block'}),
+                    html.Div([dcc.Graph(id='word-frequency')], style={'display': 'inline-block'}),
+                    html.Div([dcc.Graph(id='tweet-frequency')], style={'display': 'inline-block'}),
+                    dcc.Input(
+                        id='tweet-polarity-text',
+                        placeholder='Word Polarity History...',
+                        value='',
+                        type='text',
+                        style={'display': 'block', 'width': '30%', 'color': 'rgb(0, 0, 0)'}
+                    ),
+                    dcc.Graph(id='tweet-polarity', style={'display': 'inline-block'}),
             ], style=self.style
         )
 
@@ -32,16 +40,14 @@ class TweetAnalyticsModule(object):
 
         @app.callback(Output('word-frequency', 'figure'), [Input('intermediate-value', 'children')])
         def update_word_frequency_graph(jsonified_cleaned_data):
-
+            datasets = json.loads(jsonified_cleaned_data)
             try:
-                dff = pd.read_json(jsonified_cleaned_data, orient='split')
+                top_results_df = pd.read_json(datasets['word_frequency_df'], orient='split')
             except ValueError:
-                return html.Div([])
+                return {}
 
-            if dff.empty:
-                return html.Div([])
-
-            top_results_df = generate_top_results_dataframe(dff, count_results=10)
+            if top_results_df.empty:
+                return {}
 
             return {
                 'data': [
@@ -62,16 +68,14 @@ class TweetAnalyticsModule(object):
 
         @app.callback(Output('tweet-frequency', 'figure'), [Input('intermediate-value', 'children')])
         def update_tweet_frequencies(jsonified_cleaned_data):
-
+            datasets = json.loads(jsonified_cleaned_data)
             try:
-                dff = pd.read_json(jsonified_cleaned_data, orient='split')
+                tweet_frequency_df = pd.read_json(datasets['tweet_frequency_df'], orient='split')
             except ValueError:
-                return html.Div([])
+                return {}
 
-            if dff.empty:
-                return html.Div([])
-
-            tweet_frequency_df = generate_tweet_frequency_dataframe(dff)
+            if tweet_frequency_df.empty:
+                return {}
 
             return {
                 'data': [
@@ -89,6 +93,41 @@ class TweetAnalyticsModule(object):
                     'xaxis': {
                         'showgrid': False,
                         'nticks': len(tweet_frequency_df['tweet_year']) + 1
+                    }
+                }
+            }
+
+        @app.callback(
+            Output('tweet-polarity', 'figure'),
+            [Input('intermediate-value', 'children'), Input('tweet-polarity-text', 'value')]
+        )
+        def update_tweet_polarity_graph(jsonified_cleaned_data, input_text):
+            datasets = json.loads(jsonified_cleaned_data)
+            try:
+                dff = pd.read_json(datasets['table'], orient='split')
+            except ValueError:
+                return html.Div([])
+
+            if dff.empty:
+                return html.Div([])
+
+            tweet_polarity_df = generate_tweet_polarity_dataframe(dff, input_text)
+
+            return {
+                'data': [
+                    {
+                        'x': tweet_polarity_df['tweet_time'],
+                        'y': tweet_polarity_df['tweet_polarity_rolling'],
+                        'marker': {
+                            'color': 'rgb(134, 188, 37)'
+                        }
+                    }
+                ],
+                'layout': {
+                    'title': 'Polarity of Tweets with "{}"'.format(input_text),
+                    'xaxis': {
+                        'showgrid': False,
+                        'nticks': 10
                     }
                 }
             }
